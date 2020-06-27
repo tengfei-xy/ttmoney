@@ -1,4 +1,4 @@
-.html
-.csv
-.xls
-.xlsx
+*.html
+*.csv
+*.xls
+*.xlsx
