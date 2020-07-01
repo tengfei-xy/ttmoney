@@ -89,6 +89,10 @@ func main(){
 	fd.InitFond(client,&c)
 	fd.InitError(client)
 	fd.Output()
+
+	fmt.Print("\n筛选基金完成")
+	fmt.Scanln(&key)
+
 }
 func GetHugeCompany(client  * http.Client) []JCompany {
 	link := `http://fund.eastmoney.com/company/default.html`
@@ -278,40 +282,45 @@ func (fd * tt_Data) InitFond(client  * http.Client,c * []JCompany){
 				fd.Data[i].CName			= j.CName
 
 				// 公司链接
-				fd.Data[i].CLink 		= text
+				fd.Data[i].CLink 			= text
 
 				// 公司成立时间
 				fd.Data[i].CTime			= j.CTime
 
 				// 公司规模
-				fd.Data[i].CScale		= j.CScale
+				fd.Data[i].CScale			= j.CScale
 
 				// 基金成立时间
-				text			= base.Find("div.infoOfFund>table>tbody>tr").Next().Find("td").Eq(0).Text()
-				fd.Data[i].FCreate		= strings.Split(text,"：")[1]
+				text						= base.Find("div.infoOfFund>table>tbody>tr").Next().Find("td").Eq(0).Text()
+				fd.Data[i].FCreate			= strings.Split(text,"：")[1]
 
 				// 基金交易状态/方式
-				text			= base.Find("span.staticCell").Eq(0).Text()
-				if text == "" || strings.Index(base.Find("span.staticCell").Text(),"不可购买") != -1 { continue }
-				fd.Data[i].Way			= strings.TrimSuffix(text," ")
+				text						= base.Find("span.staticCell").Eq(0).Text()
+				if text == "" || text == "封闭期" || (strings.Index(text,"暂停") != -1) { fmt.Printf("过滤 %s 原因:%s\n 链接:%s\n",fd.Data[i].FName,text,fd.Data[i].FLink); continue }
+				text						= base.Find("span.staticCell").Text()
+				if (strings.Index(text,"不可购买") != -1) || (strings.Index(text,"不开放") != -1) {fmt.Printf("过滤 %s 原因:%s 链接%s\n",fd.Data[i].FName,text,fd.Data[i].FLink); continue }
+
+				fd.Data[i].Way				= strings.TrimSuffix(text," ")
  
 				// 基金费率
-				text 			= base.Find("span.nowPrice").Text()
-				fd.Data[i].Rate			= text
+				text 						= base.Find("span.nowPrice").Text()
+				fd.Data[i].Rate				= text
 
 				// 基金误差链接
-				text,_ 			= base.Find("td.specialData>a").Eq(1).Attr("href")
-				fd.Data[i].ErrLink		= text
+				text,_ 						= base.Find("td.specialData>a").Eq(1).Attr("href")
+				fd.Data[i].ErrLink			= text
 
 				// 包括
-				fd.Data[i].Include		= true
+				fd.Data[i].Include			= true
 
 				// 输出信息
-				fmt.Printf("基金名称:%s,基金链接:%s,基金公司:%s\n",fd.Data[i].FName,fd.Data[i].FLink,fd.Data[i].CName)
+				fmt.Printf("名称:%s基,基金链接:%s,基金公司:%s\n",fd.Data[i].FName,fd.Data[i].FLink,fd.Data[i].CName)
+				
+				Delay(d)
 				break 
+
 			}
 		}
-		Delay(d)
 	}
 }
 
@@ -322,6 +331,12 @@ func (fd * tt_Data) InitError(client  * http.Client){
 		if !fd.Data[i].Include{
 			continue
 		}
+		if fd.Data[i].ErrLink == "" {
+			fd.Data[i].ErrGZ = "--"
+			fd.Data[i].ErrPJ = "--"
+			continue
+		}
+
 		fmt.Printf("基金名称%s,请求误差链接:%s\n",fd.Data[i].FName,fd.Data[i].ErrLink)
 		r, err := http.NewRequest("GET", fd.Data[i].ErrLink, nil)
 		r.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;")
@@ -364,6 +379,8 @@ func (fd * tt_Data) Output() {
 	filename := "基金筛选结果"
 	fileext := ".csv"
 	filename += fileext
+	fmt.Printf("\n输出%s\n",filename)
+
 	file,err := os.OpenFile(filename, os.O_RDWR | os.O_CREATE  | os.O_TRUNC,0755)
 	fb := true
 	if err !=nil {
